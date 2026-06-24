@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+data/raw/
+data/processed/
+model/checkpoints/
+eval/results/
+wandb/
