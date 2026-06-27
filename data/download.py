@@ -36,3 +36,24 @@ def download_verite():
     return ds
 
 
+def download_newsclipper():
+    """
+    NewsCLIPpings: 100k+ pairs for large-scale evaluation.
+    We take the first 10,000 from the test split for scoring.
+    HuggingFace: g-luo/newsclipper
+    """
+    print("Downloading NewsCLIPpings (10k eval subset)...")
+    ds = load_dataset(
+        "g-luo/newsclipper",
+        split="test[:10000]",
+        token=os.getenv("HF_TOKEN"),
+    )
+    save_path = RAW_DIR / "newsclipper"
+    ds.save_to_disk(str(save_path))
+    print(f"  Saved {len(ds)} pairs to {save_path}\n")
+    return ds
+
+
+if __name__ == "__main__":
+    download_verite()
+    download_newsclipper()
