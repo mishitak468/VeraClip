@@ -48,3 +48,27 @@ def process_example(example: dict) -> dict:
     }
 
 
+def preprocess_split(split: str) -> None:
+    verite = load_from_disk(str(RAW_DIR / "verite"))
+    if split not in verite:
+        print(f"  Split '{split}' not in dataset — skipping")
+        return
+
+    raw = verite[split]
+    print(f"Processing VERITE {split} ({len(raw)} examples)...")
+
+    processed = raw.map(
+        process_example,
+        remove_columns=raw.column_names,
+        num_proc=4,
+        desc=f"  {split}",
+    )
+    out_path = PROC_DIR / f"verite_{split}"
+    processed.save_to_disk(str(out_path))
+    print(f"  Saved {len(processed)} rows → {out_path}")
+
+
+if __name__ == "__main__":
+    for split in ["train", "validation", "test"]:
+        preprocess_split(split)
+    print("\nPreprocessing complete.")
