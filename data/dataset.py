@@ -21,3 +21,20 @@ class MisinfoDataset(Dataset):
         max_length: max caption token length (77 for CLIP)
     """
 
+    def __init__(
+        self,
+        data_dir: str,
+        split: str,
+        tokenizer=None,
+        max_length: int = 77,
+    ):
+        path = Path(data_dir) / f"verite_{split}"
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Preprocessed split not found at {path}. "
+                "Run `python -m data.preprocess` first."
+            )
+        self.data      = load_from_disk(str(path))
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
