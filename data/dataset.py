@@ -38,3 +38,33 @@ class MisinfoDataset(Dataset):
         self.tokenizer = tokenizer
         self.max_length = max_length
 
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, idx: int) -> dict:
+        item = self.data[idx]
+
+        pixel_values = torch.tensor(item["pixel_values"], dtype=torch.float32)
+        label        = torch.tensor(item["label"],        dtype=torch.float32)
+
+        if self.tokenizer is None:
+            return {
+                "pixel_values": pixel_values,
+                "label":        label,
+                "caption":      item["caption"],
+            }
+
+        tokens = self.tokenizer(
+            item["caption"],
+            padding="max_length",
+            truncation=True,
+            max_length=self.max_length,
+            return_tensors="pt",
+        )
+        return {
+            "pixel_values":  pixel_values,
+            "input_ids":     tokens["input_ids"].squeeze(0),
+            "attention_mask": tokens["attention_mask"].squeeze(0),
+            "label":         label,
+            "caption":       item["caption"],
+        }
