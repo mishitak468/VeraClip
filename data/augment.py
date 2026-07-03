@@ -26,3 +26,24 @@ DATE_PATTERN = re.compile(
 )
 
 
+def swap_location(caption: str) -> str:
+    """Replace first detected location with a randomly chosen wrong one."""
+    for loc in LOCATION_POOL:
+        if loc.lower() in caption.lower():
+            replacement = random.choice([l for l in LOCATION_POOL if l != loc])
+            return re.sub(
+                re.escape(loc), replacement,
+                caption, count=1, flags=re.IGNORECASE
+            )
+    return caption
+
+
+def swap_date(caption: str) -> str:
+    """Replace first detected month+year with a wrong one."""
+    match = DATE_PATTERN.search(caption)
+    if match:
+        replacement = random.choice(DATE_POOL)
+        return caption[: match.start()] + replacement + caption[match.end() :]
+    return caption
+
+
