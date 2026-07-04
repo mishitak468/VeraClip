@@ -47,3 +47,20 @@ def swap_date(caption: str) -> str:
     return caption
 
 
+def create_hard_negative(caption: str) -> str:
+    """
+    Chain location + date swap.
+    Used to augment the training set with synthetic inconsistent captions.
+    """
+    return swap_date(swap_location(caption))
+
+
+def maybe_augment(caption: str, label: int, prob: float = 0.15) -> tuple[str, int]:
+    """
+    With probability `prob`, corrupt a consistent caption to create a hard negative.
+    Only applies to label=0 examples (consistent pairs).
+    Returns (caption, label).
+    """
+    if label == 0 and random.random() < prob:
+        return create_hard_negative(caption), 1
+    return caption, label
