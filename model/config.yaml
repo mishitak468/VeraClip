@@ -1,0 +1,33 @@
+model:
+  clip_model_name: "openai/clip-vit-large-patch14"
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules:
+    - "visual_projection"
+    - "text_projection"
+    - "q_proj"
+    - "v_proj"
+  fusion_hidden_dim: 512
+  dropout: 0.3
+
+training:
+  batch_size: 32
+  num_epochs: 15
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_steps: 100
+  label_smoothing: 0.1
+  max_grad_norm: 1.0
+  mixed_precision: true
+  gradient_checkpointing: true
+
+data:
+  processed_dir: "./data/processed"
+  max_caption_length: 77
+  num_workers: 4
+
+logging:
+  wandb_project: "veraclip"
+  save_every_n_epochs: 3
+  checkpoint_dir: "./model/checkpoints"
