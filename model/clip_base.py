@@ -37,3 +37,41 @@ class CLIPBackbone(nn.Module):
         proj = self.clip.visual_projection(cls)
         return proj / proj.norm(dim=-1, keepdim=True)
 
+    def encode_text(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        input_ids:      (B, seq_len)
+        attention_mask: (B, seq_len)
+        Returns:        (B, embed_dim) L2-normalized
+        """
+        out  = self.clip.text_model(input_ids=input_ids, attention_mask=attention_mask)
+        cls  = out.last_hidden_state[:, 0]
+        proj = self.clip.text_projection(cls)
+        return proj / proj.norm(dim=-1, keepdim=True)
+
+    # ------------------------------------------------------------------
+    # Convenience: returns both in one shot (used in train / eval loops)
+    # ------------------------------------------------------------------
+
+    def forward(
+        self,
+        pixel_values: torch.Tensor,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        img_emb  = self.encode_image(pixel_values)
+        text_emb = self.encode_text(input_ids, attention_mask)
+        return img_emb, text_emb
+
+    # ------------------------------------------------------------------
+    # Helper for GradCAM — exposes the vision model directly
+    # ------------------------------------------------------------------
+
+    def get_vision_encoder(self):
+        return self.clip.vision_model
+
+    def get_visual_projection(self):
+        return self.clip.visual_projection
