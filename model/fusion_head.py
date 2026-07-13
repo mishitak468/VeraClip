@@ -50,3 +50,12 @@ class InconsistencyHead(nn.Module):
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
 
+    def forward(
+        self,
+        img_emb: torch.Tensor,   # (B, embed_dim) L2-normalized
+        txt_emb: torch.Tensor,   # (B, embed_dim) L2-normalized
+    ) -> torch.Tensor:
+        """Returns (B,) inconsistency scores in [0, 1]."""
+        cosine = (img_emb * txt_emb).sum(dim=-1, keepdim=True)   # (B, 1)
+        x      = torch.cat([cosine, img_emb, txt_emb], dim=-1)   # (B, 1+2D)
+        return self.sigmoid(self.mlp(x)).squeeze(-1)              # (B,)
