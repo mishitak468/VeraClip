@@ -33,3 +33,20 @@ class MisinfoLoss(nn.Module):
         self.margin          = margin
         self.alpha           = alpha
 
+    def smooth(self, labels: torch.Tensor) -> torch.Tensor:
+        """Soft targets: 0 → 0.05, 1 → 0.95 (with smoothing=0.1)."""
+        return labels * (1.0 - self.label_smoothing) + 0.5 * self.label_smoothing
+
+    def contrastive(
+        self,
+        cosine_sim: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        For consistent pairs (label=0):   cosine should be high (+target direction)
+        For inconsistent pairs (label=1): cosine should be low  (-target direction)
+        Penalises any pair that is within `margin` of the wrong side.
+        """
+        target = 1.0 - 2.0 * labels            # consistent → +1, inconsistent → -1
+        return F.relu(self.margin - target * cosine_sim).mean()
+
