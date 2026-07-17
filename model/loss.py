@@ -50,3 +50,24 @@ class MisinfoLoss(nn.Module):
         target = 1.0 - 2.0 * labels            # consistent → +1, inconsistent → -1
         return F.relu(self.margin - target * cosine_sim).mean()
 
+    def forward(
+        self,
+        scores: torch.Tensor,    # (B,) head output in [0,1]
+        img_emb: torch.Tensor,   # (B, D) L2-normalized
+        txt_emb: torch.Tensor,   # (B, D) L2-normalized
+        labels: torch.Tensor,    # (B,) float 0 or 1
+    ) -> tuple[torch.Tensor, float, float]:
+        """
+        Returns:
+            total_loss:      scalar tensor (differentiable)
+            bce_val:         float for logging
+            contrastive_val: float for logging
+        """
+        cosine_sim   = (img_emb * txt_emb).sum(dim=-1)
+        smooth_labels = self.smooth(labels)
+
+        bce_loss     = self.bce(scores, smooth_labels)
+        contra_loss  = self.contrastive(cosine_sim, labels)
+        total        = bce_loss + self.alpha * contra_loss
+
+        return total, bce_loss.item(), contra_loss.item()
