@@ -36,3 +36,57 @@ def load_config(path: str = "model/config.yaml") -> dict:
         return yaml.safe_load(f)
 
 
+def build_model(mc: dict, device: torch.device):
+    backbone = CLIPBackbone(mc["clip_model_name"]).to(device)
+    backbone = apply_lora(backbone, mc)
+    head     = InconsistencyHead(
+        embed_dim=backbone.embed_dim,
+        hidden_dim=mc["fusion_hidden_dim"],
+        dropout=mc["dropout"],
+    ).to(device)
+    return backbone, head
+
+
+def run_epoch(backbone, head, loader, criterion, optimizer, scaler, scheduler, device, tc, train=True):
+    backbone.train(train)
+    head.train(train)
+
+    total_loss = 0.0
+    all_scores, all_labels = [], []
+
+    ctx = torch.enable_grad if train else torch.no_grad
+
+    with ctx():
+        for batch in tqdm(loader, desc="  train" if train else "  val", leave=False):
+            pv = batch["pixel_values"].to(device)
+            ii = batch["input_ids"].to(device)
+            am = batch["attention_mask"].to(device)
+            lb = batch["label"].to(device)
+
+            with autocast(enabled=tc["mixed_precision"]):
+                img_emb, txt_emb = backbone(pv, ii, am)
+                scores           = head(img_emb, txt_emb)
+                loss, bce, contra = criterion(scores, img_emb, txt_emb, lb)
+
+            if train:
+                optimizer.zero_grad()
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(
+                    list(backbone.parameters()) + list(head.parameters()),
+                    tc["max_grad_norm"],
+                )
+                scaler.step(optimizer)
+                scaler.update()
+                scheduler.step()
+
+            total_loss += loss.item()
+            all_scores.extend(scores.detach().cpu().numpy())
+            all_labels.extend(lb.cpu().numpy())
+
+    avg_loss = total_loss / len(loader)
+    auc      = roc_auc_score(all_labels, all_scores)
+    acc      = ((torch.tensor(all_scores) > 0.5).float().numpy() == all_labels).mean()
+    return avg_loss, auc, acc
+
+
