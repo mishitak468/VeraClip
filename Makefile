@@ -11,3 +11,6 @@ data:
 	python -m data.download
 	python -m data.preprocess
 
+train:
+	python -m model.train
+
