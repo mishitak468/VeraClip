@@ -90,3 +90,82 @@ def run_epoch(backbone, head, loader, criterion, optimizer, scaler, scheduler, d
     return avg_loss, auc, acc
 
 
+def train():
+    cfg = load_config()
+    mc, tc, dc, lc = cfg["model"], cfg["training"], cfg["data"], cfg["logging"]
+
+    wandb.init(project=lc["wandb_project"], config=cfg)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}")
+
+    backbone, head = build_model(mc, device)
+    processor      = CLIPProcessor.from_pretrained(mc["clip_model_name"])
+    criterion      = MisinfoLoss(label_smoothing=tc["label_smoothing"])
+
+    train_ds = MisinfoDataset(dc["processed_dir"], "train",      processor.tokenizer, dc["max_caption_length"])
+    val_ds   = MisinfoDataset(dc["processed_dir"], "validation", processor.tokenizer, dc["max_caption_length"])
+
+    train_loader = DataLoader(train_ds, batch_size=tc["batch_size"], shuffle=True,  num_workers=dc["num_workers"], pin_memory=True)
+    val_loader   = DataLoader(val_ds,   batch_size=tc["batch_size"], shuffle=False, num_workers=dc["num_workers"], pin_memory=True)
+
+    params    = list(backbone.parameters()) + list(head.parameters())
+    optimizer = torch.optim.AdamW(params, lr=tc["learning_rate"], weight_decay=tc["weight_decay"])
+    scheduler = get_cosine_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=tc["warmup_steps"],
+        num_training_steps=len(train_loader) * tc["num_epochs"],
+    )
+    scaler = GradScaler(enabled=tc["mixed_precision"] and torch.cuda.is_available())
+
+    ckpt_dir = Path(lc["checkpoint_dir"])
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    best_auc = 0.0
+
+    for epoch in range(1, tc["num_epochs"] + 1):
+        print(f"\nEpoch {epoch}/{tc['num_epochs']}")
+
+        tr_loss, tr_auc, tr_acc = run_epoch(
+            backbone, head, train_loader, criterion,
+            optimizer, scaler, scheduler, device, tc, train=True
+        )
+        va_loss, va_auc, va_acc = run_epoch(
+            backbone, head, val_loader, criterion,
+            optimizer, scaler, scheduler, device, tc, train=False
+        )
+
+        print(f"  train  loss={tr_loss:.4f}  auc={tr_auc:.4f}  acc={tr_acc:.4f}")
+        print(f"  val    loss={va_loss:.4f}  auc={va_auc:.4f}  acc={va_acc:.4f}")
+
+        wandb.log({
+            "epoch":      epoch,
+            "train/loss": tr_loss, "train/auc": tr_auc, "train/acc": tr_acc,
+            "val/loss":   va_loss, "val/auc":   va_auc, "val/acc":   va_acc,
+        })
+
+        if va_auc > best_auc:
+            best_auc = va_auc
+            torch.save({
+                "epoch":           epoch,
+                "backbone_state":  backbone.state_dict(),
+                "head_state":      head.state_dict(),
+                "optimizer_state": optimizer.state_dict(),
+                "val_auc":         va_auc,
+                "val_acc":         va_acc,
+                "config":          cfg,
+            }, ckpt_dir / "best_model.pt")
+            print(f"  ✓ New best saved  (AUC={va_auc:.4f})")
+
+        if epoch % lc["save_every_n_epochs"] == 0:
+            torch.save({
+                "epoch":          epoch,
+                "backbone_state": backbone.state_dict(),
+                "head_state":     head.state_dict(),
+            }, ckpt_dir / f"epoch_{epoch:03d}.pt")
+
+    wandb.finish()
+    print(f"\nDone. Best validation AUC: {best_auc:.4f}")
+    print(f"Checkpoint: {ckpt_dir / 'best_model.pt'}")
+
+
+if __name__ == "__main__":
+    train()
