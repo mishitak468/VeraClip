@@ -53,3 +53,42 @@ def _reshape_transform(tensor, height: int = 16, width: int = 16) -> torch.Tenso
     return patches.reshape(B, height, width, D).permute(0, 3, 1, 2)   # (B, D, H, W)
 
 
+class CLIPGradCAM:
+
+    def __init__(self, backbone, head):
+        self.backbone = backbone
+        self.head     = head
+
+    def _get_target_layer(self):
+        """Last ViT encoder LayerNorm — highest-level spatial features."""
+        return self.backbone.clip.vision_model.encoder.layers[-1].layer_norm2
+
+    def generate(
+        self,
+        pixel_values: torch.Tensor,   # (1, 3, 224, 224)
+        text_emb: torch.Tensor,       # (1, D)
+    ) -> np.ndarray:
+        """
+        Returns (224, 224) float32 heatmap, values in [0, 1].
+        High values = regions causally driving the inconsistency score.
+        """
+        wrapper = _VisionWrapper(self.backbone, self.head, text_emb)
+        cam     = GradCAM(
+            model=wrapper,
+            target_layers=[self._get_target_layer()],
+            reshape_transform=_reshape_transform,
+        )
+        grayscale = cam(
+            input_tensor=pixel_values,
+            targets=[ClassifierOutputTarget(0)],
+        )
+        return grayscale[0]   # (224, 224)
+
+    @staticmethod
+    def overlay(
+        image_np: np.ndarray,    # (H, W, 3) float32 in [0, 1]
+        heatmap: np.ndarray,     # (H, W)    float32 in [0, 1]
+    ) -> np.ndarray:
+        """Returns (H, W, 3) uint8 RGB blended overlay."""
+        heatmap_resized = cv2.resize(heatmap, (image_np.shape[1], image_np.shape[0]))
+        return show_cam_on_image(image_np, heatmap_resized, use_rgb=True)
