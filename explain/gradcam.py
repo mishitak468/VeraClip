@@ -42,3 +42,14 @@ class _VisionWrapper(torch.nn.Module):
         return score.unsqueeze(-1)   # GradCAM expects (B, num_classes)
 
 
+def _reshape_transform(tensor, height: int = 16, width: int = 16) -> torch.Tensor:
+    """
+    ViT hidden states: (B, num_patches+1, D).
+    Drop CLS (index 0), reshape to (B, D, H, W) as GradCAM expects.
+    ViT-L/14 at 224px: 224/14 = 16 → 16×16 = 256 patches.
+    """
+    patches = tensor[:, 1:, :]                             # drop CLS  → (B, 256, D)
+    B, N, D = patches.shape
+    return patches.reshape(B, height, width, D).permute(0, 3, 1, 2)   # (B, D, H, W)
+
+
