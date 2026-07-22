@@ -92,3 +92,41 @@ def attention_rollout(
 # Text-side: token importance via embedding norm
 # ---------------------------------------------------------------------------
 
+def token_importance(
+    text_emb: torch.Tensor,
+    tokens: list[str],
+    backbone=None,
+    input_ids: Optional[torch.Tensor] = None,
+    attention_mask: Optional[torch.Tensor] = None,
+) -> list[dict]:
+    """
+    Returns list of {token, score} dicts sorted from most → least important.
+
+    If backbone + input_ids are provided, uses per-position hidden states.
+    Otherwise falls back to a simple uniform score distribution.
+    """
+    if backbone is not None and input_ids is not None and attention_mask is not None:
+        with torch.no_grad():
+            out = backbone.clip.text_model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                output_hidden_states=True,
+            )
+        # last hidden state: (1, seq_len, D)
+        hidden = out.last_hidden_state[0]  # (seq_len, D)
+        # Positions 1 to len(tokens)+1 correspond to actual caption tokens
+        n = min(len(tokens), hidden.size(0) - 2)
+        scores_raw = hidden[1 : n + 1].norm(dim=-1).cpu().numpy()
+    else:
+        # Fallback: uniform
+        scores_raw = np.ones(len(tokens), dtype=np.float32)
+
+    # Normalize to [0, 1]
+    denom  = scores_raw.max() - scores_raw.min() + 1e-8
+    normed = (scores_raw - scores_raw.min()) / denom
+
+    result = [
+        {"token": tok, "score": round(float(s), 3)}
+        for tok, s in zip(tokens, normed)
+    ]
+    return sorted(result, key=lambda x: x["score"], reverse=True)
