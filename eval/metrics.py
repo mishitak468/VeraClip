@@ -59,3 +59,27 @@ def compute_all_metrics(
     }
 
 
+def find_best_threshold(
+    labels: list[int],
+    scores: list[float],
+    steps: int = 100,
+    optimize: str = "f1",
+) -> float:
+    """
+    Grid search for the threshold that maximises F1 (or accuracy).
+
+    Args:
+        optimize: 'f1' or 'acc'
+    Returns:
+        best threshold float
+    """
+    best_score, best_t = 0.0, 0.5
+    for t in np.linspace(0.05, 0.95, steps):
+        preds = [1 if s >= t else 0 for s in scores]
+        if optimize == "f1":
+            s = f1_score(labels, preds, zero_division=0)
+        else:
+            s = accuracy_score(labels, preds)
+        if s > best_score:
+            best_score, best_t = s, float(t)
+    return round(best_t, 4)
