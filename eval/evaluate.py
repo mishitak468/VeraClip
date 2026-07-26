@@ -30,3 +30,32 @@ RESULTS_DIR = Path("eval/results")
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def load_model(ckpt_path: str, cfg: dict, device: torch.device):
+    mc = cfg["model"]
+    backbone = CLIPBackbone(mc["clip_model_name"]).to(device)
+    head     = InconsistencyHead(
+        embed_dim=backbone.embed_dim,
+        hidden_dim=mc["fusion_hidden_dim"],
+        dropout=mc["dropout"],
+    ).to(device)
+    ckpt = torch.load(ckpt_path, map_location=device)
+    backbone.load_state_dict(ckpt["backbone_state"])
+    head.load_state_dict(ckpt["head_state"])
+    backbone.eval(); head.eval()
+    print(f"Loaded checkpoint from {ckpt_path}  (epoch {ckpt.get('epoch','?')})")
+    return backbone, head
+
+
+def plot_score_distribution(labels, scores, save_path: str) -> None:
+    consistent   = [s for s, l in zip(scores, labels) if l == 0]
+    inconsistent = [s for s, l in zip(scores, labels) if l == 1]
+    plt.figure(figsize=(8, 4))
+    plt.hist(consistent,   bins=50, alpha=0.6, label="Consistent (label=0)",   color="#3B8BD4")
+    plt.hist(inconsistent, bins=50, alpha=0.6, label="Inconsistent (label=1)", color="#E24B4A")
+    plt.xlabel("Inconsistency score"); plt.ylabel("Count")
+    plt.title("Score distribution by class — VeraClip VERITE test set")
+    plt.legend(); plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+
+
