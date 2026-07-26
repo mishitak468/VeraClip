@@ -59,3 +59,53 @@ def plot_score_distribution(labels, scores, save_path: str) -> None:
     plt.close()
 
 
+def run_evaluation(
+    ckpt_path: str = "model/checkpoints/best_model.pt",
+    config_path: str = "model/config.yaml",
+    split: str = "test",
+) -> dict:
+    cfg    = yaml.safe_load(open(config_path))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    backbone, head = load_model(ckpt_path, cfg, device)
+    processor      = CLIPProcessor.from_pretrained(cfg["model"]["clip_model_name"])
+
+    ds     = MisinfoDataset(cfg["data"]["processed_dir"], split, processor.tokenizer)
+    loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=cfg["data"]["num_workers"])
+
+    all_scores, all_labels = [], []
+
+    with torch.no_grad():
+        for batch in tqdm(loader, desc=f"Evaluating on {split}"):
+            pv = batch["pixel_values"].to(device)
+            ii = batch["input_ids"].to(device)
+            am = batch["attention_mask"].to(device)
+
+            with autocast():
+                img_emb, txt_emb = backbone(pv, ii, am)
+                scores           = head(img_emb, txt_emb)
+
+            all_scores.extend(scores.cpu().numpy().tolist())
+            all_labels.extend(batch["label"].numpy().tolist())
+
+    best_t  = find_best_threshold(all_labels, all_scores)
+    metrics = compute_all_metrics(all_labels, all_scores, threshold=best_t)
+
+    # Save metrics
+    metrics_path = RESULTS_DIR / "test_metrics.json"
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+    print(f"\nMetrics saved to {metrics_path}")
+
+    # Save score distribution plot
+    plot_score_distribution(all_labels, all_scores, str(RESULTS_DIR / "score_distribution.png"))
+
+    print("\n=== VeraClip Test Results ===")
+    for k, v in metrics.items():
+        print(f"  {k:20s}: {v}")
+
+    return metrics
+
+
+if __name__ == "__main__":
+    run_evaluation()
