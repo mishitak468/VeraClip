@@ -14,3 +14,6 @@ data:
 train:
 	python -m model.train
 
+eval:
+	python -m eval.evaluate
+
