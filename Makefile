@@ -17,3 +17,6 @@ train:
 eval:
 	python -m eval.evaluate
 
+batch-score:
+	python -m eval.batch_score
+
