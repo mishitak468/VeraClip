@@ -41,3 +41,13 @@ class MisinfoInference:
         device:   torch.device
     """
 
+    def __init__(self, backbone, head, device: torch.device):
+        self.backbone  = backbone
+        self.head      = head
+        self.device    = device
+        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
+        self.gcam      = CLIPGradCAM(backbone, head)
+
+        self.backbone.eval()
+        self.head.eval()
+
