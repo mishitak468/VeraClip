@@ -49,3 +49,52 @@ inferencer = MisinfoInference(backbone, head, device)
 
 # ── Inference handler ─────────────────────────────────────────────────────────
 
+def analyze(image: Image.Image, caption: str):
+    if image is None:
+        return None, "**Error:** Please upload an image.", "", ""
+    if not caption or not caption.strip():
+        return None, "**Error:** Please enter a caption to verify.", "", ""
+
+    result = inferencer.predict(image, caption)
+
+    overlay_pil = Image.fromarray(result["overlay"])
+
+    # Verdict markdown
+    icons   = {"inconsistent": "🔴", "consistent": "🟢", "uncertain": "🟡"}
+    icon    = icons[result["verdict"]]
+    verdict_md = (
+        f"### {icon} Verdict: **{result['verdict'].upper()}**\n\n"
+        f"| Metric | Value |\n"
+        f"|--------|-------|\n"
+        f"| Inconsistency score | `{result['score']}` |\n"
+        f"| CLIP cosine similarity | `{result['cosine_sim']}` |\n"
+        f"| Anomaly z-score | `{result['z_score']}σ` |\n\n"
+        f"*Score → 1: caption likely misrepresents the image. "
+        f"Score → 0: caption appears consistent.*"
+    )
+
+    # Attention token breakdown
+    top5 = result["token_scores"][:5]
+    tok_rows = "\n".join([f"| `{t['token']}` | {t['score']} |" for t in top5])
+    attn_md = (
+        f"### Top attention tokens\n\n"
+        f"| Token | Importance |\n"
+        f"|-------|------------|\n"
+        f"{tok_rows}\n\n"
+        f"High-importance tokens are the primary contradiction signals "
+        f"the model used to reach its verdict."
+    )
+
+    return overlay_pil, verdict_md, attn_md, str(result["score"])
+
+
+# ── Gradio UI ─────────────────────────────────────────────────────────────────
+
+DESCRIPTION = """
+**VeraClip** detects whether a social media caption accurately describes its accompanying image.
+
+Upload any image and paste the caption that appeared with it. The model highlights which
+image regions and caption words drove the inconsistency verdict using GradCAM + attention rollout.
+
+Fine-tuned on [VERITE](https://huggingface.co/datasets/Ftheodorakis/VERITE) · Architecture: CLIP-ViT-L/14 + LoRA (r=16)
+"""
