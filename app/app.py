@@ -98,3 +98,54 @@ image regions and caption words drove the inconsistency verdict using GradCAM + 
 
 Fine-tuned on [VERITE](https://huggingface.co/datasets/Ftheodorakis/VERITE) · Architecture: CLIP-ViT-L/14 + LoRA (r=16)
 """
+
+with gr.Blocks(
+    title="VeraClip — Multimodal Misinformation Detector",
+    theme=gr.themes.Soft(primary_hue="red", neutral_hue="slate"),
+    css=".gradio-container { max-width: 1100px !important }",
+) as demo:
+
+    gr.Markdown("# 🔍 VeraClip — Multimodal Misinformation Detector")
+    gr.Markdown(DESCRIPTION)
+
+    with gr.Row():
+        with gr.Column(scale=1):
+            image_input   = gr.Image(type="pil", label="Image")
+            caption_input = gr.Textbox(
+                lines=5,
+                label="Caption to verify",
+                placeholder="Paste the caption that accompanied this image on social media...",
+            )
+            submit_btn = gr.Button("Analyze", variant="primary", size="lg")
+
+        with gr.Column(scale=1):
+            gradcam_out = gr.Image(
+                label="GradCAM overlay — red regions drove the inconsistency score",
+                show_download_button=True,
+            )
+            verdict_out = gr.Markdown(label="Verdict")
+            attn_out    = gr.Markdown(label="Token attention")
+            score_out   = gr.Textbox(label="Raw score [0–1]", interactive=False, scale=0)
+
+    gr.Examples(
+        label="Example pairs (illustrative — replace with real images after training)",
+        examples=[
+            [None, "Residents evacuate after catastrophic flooding in Chennai, India — September 2024"],
+            [None, "Pro-democracy protesters gather in Hong Kong financial district, November 2019"],
+            [None, "Wildfire smoke blankets California's Central Valley during the 2023 fire season"],
+        ],
+        inputs=[image_input, caption_input],
+    )
+
+    submit_btn.click(
+        fn=analyze,
+        inputs=[image_input, caption_input],
+        outputs=[gradcam_out, verdict_out, attn_out, score_out],
+    )
+
+if __name__ == "__main__":
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=int(os.getenv("PORT", 7860)),
+        share=False,
+    )
