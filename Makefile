@@ -20,3 +20,6 @@ eval:
 batch-score:
 	python -m eval.batch_score
 
+app:
+	python -m app.app
+
