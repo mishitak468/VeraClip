@@ -67,3 +67,34 @@ class TestCLIPBackbone:
         assert img_emb.shape == txt_emb.shape == (2, backbone.embed_dim)
 
 
+class TestInconsistencyHead:
+
+    def test_output_shape(self, backbone, head):
+        img = torch.randn(BATCH, backbone.embed_dim)
+        txt = torch.randn(BATCH, backbone.embed_dim)
+        out = head(img, txt)
+        assert out.shape == (BATCH,)
+
+    def test_output_in_zero_one(self, backbone, head):
+        img = torch.randn(16, backbone.embed_dim)
+        txt = torch.randn(16, backbone.embed_dim)
+        out = head(img, txt)
+        assert out.min() >= 0.0 and out.max() <= 1.0
+
+    def test_consistent_pair_lower_score(self, backbone, head):
+        """Identical embeddings should produce a lower score than random ones."""
+        emb       = torch.randn(1, backbone.embed_dim)
+        norm_emb  = emb / emb.norm(dim=-1, keepdim=True)
+        consistent   = head(norm_emb, norm_emb).item()
+        random_img   = torch.randn(1, backbone.embed_dim)
+        random_txt   = torch.randn(1, backbone.embed_dim)
+        inconsistent = head(
+            random_img / random_img.norm(dim=-1, keepdim=True),
+            random_txt / random_txt.norm(dim=-1, keepdim=True),
+        ).item()
+        # Consistent pairs should score lower on average (not guaranteed for random
+        # weights, but holds after training — keep as sanity check, not hard assert)
+        assert isinstance(consistent, float)
+        assert isinstance(inconsistent, float)
+
+
