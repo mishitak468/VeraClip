@@ -98,3 +98,25 @@ class TestInconsistencyHead:
         assert isinstance(inconsistent, float)
 
 
+class TestMisinfoLoss:
+
+    def test_loss_backward(self):
+        criterion = MisinfoLoss()
+        img_emb   = torch.randn(BATCH, 512, requires_grad=True)
+        txt_emb   = torch.randn(BATCH, 512)
+        scores    = torch.sigmoid(torch.randn(BATCH))
+        labels    = torch.tensor([1., 0., 1., 0.])
+        loss, bce, contra = criterion(scores, img_emb, txt_emb, labels)
+        loss.backward()
+        assert img_emb.grad is not None
+
+    def test_loss_values_positive(self):
+        criterion = MisinfoLoss()
+        img = torch.randn(4, 512)
+        txt = torch.randn(4, 512)
+        scores = torch.sigmoid(torch.randn(4))
+        labels = torch.tensor([1., 0., 0., 1.])
+        loss, bce, contra = criterion(scores, img, txt, labels)
+        assert loss.item() > 0
+        assert bce > 0
+        assert contra >= 0
