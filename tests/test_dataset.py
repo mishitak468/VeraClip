@@ -24,3 +24,16 @@ def make_fake_dataset(n: int = 10) -> Dataset:
 
 
 @pytest.fixture
+def fake_data_dir(tmp_path):
+    """Write a fake preprocessed dataset to a temp directory."""
+    ds = make_fake_dataset(20)
+    ds.save_to_disk(str(tmp_path / "verite_train"))
+    return str(tmp_path)
+
+
+class TestMisinfoDataset:
+
+    def test_len(self, fake_data_dir):
+        ds = MisinfoDataset(fake_data_dir, "train")
+        assert len(ds) == 20
+
