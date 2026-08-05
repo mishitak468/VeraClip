@@ -37,3 +37,23 @@ class TestMisinfoDataset:
         ds = MisinfoDataset(fake_data_dir, "train")
         assert len(ds) == 20
 
+    def test_item_keys_without_tokenizer(self, fake_data_dir):
+        ds   = MisinfoDataset(fake_data_dir, "train")
+        item = ds[0]
+        assert "pixel_values" in item
+        assert "label" in item
+        assert "caption" in item
+
+    def test_pixel_values_shape(self, fake_data_dir):
+        ds   = MisinfoDataset(fake_data_dir, "train")
+        item = ds[0]
+        assert item["pixel_values"].shape == (3, 224, 224)
+
+    def test_label_is_binary(self, fake_data_dir):
+        ds = MisinfoDataset(fake_data_dir, "train")
+        for i in range(len(ds)):
+            assert ds[i]["label"].item() in [0.0, 1.0]
+
+    def test_missing_split_raises(self, fake_data_dir):
+        with pytest.raises(FileNotFoundError):
+            MisinfoDataset(fake_data_dir, "nonexistent_split")
