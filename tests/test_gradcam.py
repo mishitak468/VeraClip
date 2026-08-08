@@ -61,3 +61,22 @@ class TestTokenImportance:
         assert scores == sorted(scores, reverse=True)
 
 
+class TestVisualize:
+
+    def test_heatmap_to_rgb_shape(self):
+        hmap = np.random.rand(224, 224).astype(np.float32)
+        rgb  = heatmap_to_rgb(hmap)
+        assert rgb.shape == (224, 224, 3)
+        assert rgb.dtype == np.uint8
+
+    def test_blend_heatmap_shape(self):
+        img  = np.random.rand(224, 224, 3).astype(np.float32)
+        hmap = np.random.rand(224, 224).astype(np.float32)
+        out  = blend_heatmap(img, hmap)
+        assert out.shape == (224, 224, 3)
+        assert out.dtype == np.uint8
+
+    def test_attention_to_image_shape(self):
+        patches = np.random.rand(49).astype(np.float32)   # ViT-B/32
+        out     = attention_to_image(patches, image_size=224, patch_size=32)
+        assert out.shape == (224, 224)
