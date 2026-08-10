@@ -23,3 +23,10 @@ batch-score:
 app:
 	python -m app.app
 
+test:
+	pytest tests/ -v --tb=short
+
+clean:
+	rm -rf data/raw data/processed model/checkpoints eval/results
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -name "*.pyc" -delete
