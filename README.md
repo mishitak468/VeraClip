@@ -31,3 +31,50 @@ make batch-score   # score 10k NewsCLIPpings pairs
 make app           # launch Gradio at localhost:7860
 make test          # run test suite
 ```
+
+## Results
+
+| Metric    | Value  |
+|-----------|--------|
+| AUC       | TBD    |
+| Accuracy  | TBD    |
+| F1        | TBD    |
+| Precision | TBD    |
+| Recall    | TBD    |
+
+*(Fill these in after training)*
+
+## File structure
+
+```
+veraclip/
+├── data/
+│   ├── download.py       ← pulls VERITE + NewsCLIPpings from HuggingFace
+│   ├── preprocess.py     ← image transforms, binary label mapping, tensor cache
+│   ├── dataset.py        ← PyTorch Dataset wrapping the HF cache
+│   └── augment.py        ← caption corruption for hard negative generation
+├── model/
+│   ├── config.yaml       ← all hyperparameters in one place
+│   ├── clip_base.py      ← CLIP-ViT-L/14 wrapper (encode_image, encode_text)
+│   ├── lora_adapter.py   ← LoRA r=16 applied to projection + attention layers
+│   ├── fusion_head.py    ← MLP: [cosine | img_emb | txt_emb] → score
+│   ├── loss.py           ← BCE + contrastive margin loss
+│   └── train.py          ← full training loop (fp16, cosine LR, WandB)
+├── explain/
+│   ├── gradcam.py        ← GradCAM on last ViT encoder layer → spatial heatmap
+│   ├── attn_rollout.py   ← rollout across all layers → patch + token importance
+│   └── visualize.py      ← heatmap rendering, overlay blending, report figures
+├── eval/
+│   ├── metrics.py        ← AUC, F1, precision, recall, threshold search
+│   ├── evaluate.py       ← VERITE test set evaluation + score distribution plot
+│   ├── batch_score.py    ← score 10k NewsCLIPpings pairs → CSV
+│   └── report.py         ← GradCAM figures for worst false positives/negatives
+├── app/
+│   ├── inference.py      ← single-pair pipeline (preprocess → infer → explain)
+│   └── app.py            ← Gradio web interface
+└── tests/
+    ├── test_model.py     ← backbone, head, loss unit tests
+    ├── test_dataset.py   ← dataset loading with mock data
+    ├── test_gradcam.py   ← attention rollout, visualize utilities
+    └── test_inference.py ← end-to-end pipeline integration test
+```
