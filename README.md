@@ -78,3 +78,21 @@ veraclip/
     ├── test_gradcam.py   ← attention rollout, visualize utilities
     └── test_inference.py ← end-to-end pipeline integration test
 ```
+
+## Training on Google Colab (free T4)
+
+```python
+# In a Colab cell:
+!git clone https://github.com/yourname/veraclip && cd veraclip
+!pip install -r requirements.txt
+!python -m data.download
+!python -m data.preprocess
+!python -m model.train
+```
+
+Connect Google Drive to persist checkpoints between sessions.
+
+## Datasets
+
+- **VERITE** (`Ftheodorakis/VERITE`): 3,600 labeled pairs, three classes
+- **NewsCLIPpings** (`g-luo/newsclipper`): 100k+ pairs for large-scale evaluation
