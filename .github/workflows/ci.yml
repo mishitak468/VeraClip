@@ -27,7 +27,7 @@ jobs:
           pip install --upgrade pip
           pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           pip install transformers peft datasets pillow \
-                      pytorch-grad-cam scikit-learn \
+                      grad-cam scikit-learn \
                       pytest pyyaml python-dotenv opencv-python-headless \
                       matplotlib numpy
 
