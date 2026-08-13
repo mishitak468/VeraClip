@@ -62,7 +62,8 @@ def attention_rollout(
 
     # Fallback: if no attention weights captured (some PEFT configs suppress them)
     if not attentions:
-        num_patches = (pixel_values.shape[-1] // 14) ** 2   # ViT-L/14 → 256
+        patch_size  = backbone.clip.vision_model.config.patch_size
+        num_patches = (pixel_values.shape[-1] // patch_size) ** 2
         return np.ones(num_patches, dtype=np.float32)
 
     # Rollout algorithm

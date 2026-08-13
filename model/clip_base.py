@@ -20,7 +20,10 @@ class CLIPBackbone(nn.Module):
 
     def __init__(self, model_name: str = "openai/clip-vit-large-patch14"):
         super().__init__()
-        self.clip      = CLIPModel.from_pretrained(model_name)
+        # eager attention is required so output_attentions=True actually returns
+        # attention weights (sdpa/flash implementations silently drop them) -
+        # needed by explain/attn_rollout.py and explain/gradcam.py
+        self.clip      = CLIPModel.from_pretrained(model_name, attn_implementation="eager")
         self.embed_dim = self.clip.config.projection_dim  # 768
 
     # ------------------------------------------------------------------
