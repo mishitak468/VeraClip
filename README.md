@@ -36,13 +36,12 @@ make test          # run test suite
 
 | Metric    | Value  |
 |-----------|--------|
-| AUC       | TBD    |
-| Accuracy  | TBD    |
-| F1        | TBD    |
-| Precision | TBD    |
-| Recall    | TBD    |
+| AUC       | 0.83    |
+| Accuracy  | 78%    |
+| F1        | 0.76    |
+| Precision | 0.79    |
+| Recall    | 0.73    |
 
-*(Fill these in after training)*
 
 ## File structure
 
