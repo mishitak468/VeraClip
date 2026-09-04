@@ -37,7 +37,7 @@ make test          # run test suite
 | Metric    | Value  |
 |-----------|--------|
 | AUC       | 0.83    |
-| Accuracy  | 78%    |
+| Accuracy  | 78%     |
 | F1        | 0.76    |
 | Precision | 0.79    |
 | Recall    | 0.73    |
